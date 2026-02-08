@@ -53,18 +53,30 @@ export const SELECTION_COOLDOWN_SEC = 1.5;
 export const HIT_TEST_PADDING_PX = 20;
 
 // UI
-export const BOARD_ROWS = 2;
-export const BOARD_COLS = 4;
+export interface BoardCategory {
+  name: string;
+  items: string[];
+  emergency?: boolean;
+}
 
-export const BOARD_LABELS = [
-  "네",
-  "아니요",
-  "목말라요",
-  "도와주세요",
-  "아파요",
-  "배고파요",
-  "화장실",
-  "간호사 호출",
+export const BOARD_CATEGORIES: BoardCategory[] = [
+  {
+    name: "인사 및 안부",
+    items: ["어서와", "안녕", "잘지냈어?", "밥 먹었어?", "보고싶었어", "잘 자", "좋은 하루 보내"],
+  },
+  {
+    name: "의사소통",
+    items: ["고마워", "미안해", "뭐하고왔어?", "배고파", "목말라", "좋아", "싫어"],
+  },
+  {
+    name: "기타",
+    items: ["경탁이", "미라", "미승이", "영승이", "소향이", "근탁이"],
+  },
+  {
+    name: "긴급",
+    items: ["아파", "간호사 불러줘", "화장실 가고 싶어", "약 먹을 시간이야", "숨이 답답해", "어지러워", "도와줘"],
+    emergency: true,
+  },
 ];
 
 // MediaPipe model
