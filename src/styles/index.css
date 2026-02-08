@@ -55,6 +55,26 @@ body {
   opacity: 0.85;
 }
 
+.zoom-indicator {
+  position: fixed;
+  top: calc(100vh / 6 + 18px);
+  left: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(10, 10, 30, 0.85);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #334466;
+  z-index: 150;
+}
+
+.zoom-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
 /* ========== Loading / Error ========== */
 
 .center-message {

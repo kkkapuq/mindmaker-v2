@@ -37,15 +37,23 @@ export const EYE_CLOSE_SELECT_SEC = 1.0; // 이 시간 이상 눈 감으면 선�
 export const CALIBRATION_POINTS = 25; // 5x5 그리드
 export const CALIBRATION_GRID_ROWS = 5;
 export const CALIBRATION_GRID_COLS = 5;
-export const FRAMES_PER_POINT = 30;
-export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림 (안정화 대기)
+export const FRAMES_PER_POINT = 30; // 수집 프레임 수
+export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림
 export const CALIBRATION_OUTLIER_STD = 1.5; // 이상치 제거 기준 (표준편차 배수)
-export const RIDGE_LAMBDA = 1.5; // 릿지 회귀 정규화 계수 (과적합 방지, 1.0→1.5)
+export const RIDGE_LAMBDA = 0.5; // 릿지 회귀 정규화 계수 (1.5→0.5: 절편 버그 수정 후 적정값)
 
 // Gaze smoothing
 export const SMOOTHING_ALPHA = 0.15; // 낮을수록 부드러움 (0.05→0.15: 반응성 향상)
 export const MOVING_AVG_SIZE = 6; // 이동 평균 버퍼 크기 (15→6: 지연 감소)
 export const MIN_MOVE_PX = 8; // 이 픽셀 이하 움직임은 무시 (40→8: 데드존 축소)
+
+// Gaze sensitivity (시선 매핑 민감도)
+export const GAZE_SENSITIVITY = 0.9; // 1.0=원본, 낮을수록 화면 중심으로 수축 (0.75→0.9: ey 특징 추가로 과민 완화됨)
+
+// Camera zoom
+export const ZOOM_MIN = 1.0;
+export const ZOOM_MAX = 3.0;
+export const ZOOM_STEP = 0.25;
 
 // Dwell selection
 export const DWELL_TIME_SEC = 1.5;
@@ -69,7 +77,7 @@ export const BOARD_CATEGORIES: BoardCategory[] = [
     items: ["고마워", "미안해", "뭐하고왔어?", "배고파", "목말라", "좋아", "싫어"],
   },
   {
-    name: "기타",
+    name: "가족",
     items: ["경탁이", "미라", "미승이", "영승이", "소향이", "근탁이"],
   },
   {

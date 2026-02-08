@@ -6,6 +6,9 @@ import {
   GAZE_FREEZE_EAR,
   GAZE_RECOVERY_FRAMES,
   EYE_CLOSE_SELECT_SEC,
+  ZOOM_MIN,
+  ZOOM_MAX,
+  ZOOM_STEP,
 } from "../config";
 
 import type { GazeFeatures } from "./GazeMapper";
@@ -23,6 +26,7 @@ export interface TrackerState {
   headY: number;
   noseX: number;
   noseY: number;
+  eyeLidOpen: number; // 눈꺼풀 열림 높이 (ey)
   gazeX: number;
   gazeY: number;
   gazeValid: boolean;
@@ -45,6 +49,7 @@ const INITIAL_STATE: TrackerState = {
   headY: 0,
   noseX: 0,
   noseY: 0,
+  eyeLidOpen: 0,
   gazeX: 0,
   gazeY: 0,
   gazeValid: false,
@@ -68,10 +73,17 @@ export function useTracker() {
 
   // Gaze freeze state
   const recoveryCountRef = useRef(0); // 눈 뜬 후 남은 안정화 프레임
+  const wasFrozenRef = useRef(false); // 직전 프레임이 freeze 상태였는지
 
   // 눈 감은 시간 추적
   const eyeClosedStartRef = useRef(0); // 눈 감기 시작한 timestamp (0 = 안 감음)
   const eyeCloseSelectFiredRef = useRef(false); // 이미 선택 발동했는지
+
+  // Zoom state
+  const zoomLevelRef = useRef(1.0);
+  const [zoomLevel, setZoomLevelState] = useState(1.0);
+  const zoomCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const zoomCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +103,13 @@ export function useTracker() {
         if (!video) return;
         video.srcObject = stream;
         await video.play();
+
+        // 줌용 오프스크린 캔버스 초기화
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        zoomCanvasRef.current = canvas;
+        zoomCtxRef.current = canvas.getContext("2d");
 
         await eyeTrackerRef.current.init();
         if (cancelled) return;
@@ -124,7 +143,28 @@ export function useTracker() {
       }
       prevTimeRef.current = now;
 
-      const landmarks = eyeTrackerRef.current.process(video, now);
+      // --- 줌 처리: 중앙 크롭 → 캔버스 스케일 ---
+      const zoom = zoomLevelRef.current;
+      let input: HTMLVideoElement | HTMLCanvasElement = video;
+
+      if (zoom > 1 && zoomCanvasRef.current && zoomCtxRef.current) {
+        const canvas = zoomCanvasRef.current;
+        const ctx = zoomCtxRef.current;
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+
+        // 크롭 영역 (중앙 기준)
+        const cropW = vw / zoom;
+        const cropH = vh / zoom;
+        const cropX = (vw - cropW) / 2;
+        const cropY = (vh - cropH) / 2;
+
+        // 크롭한 영역을 캔버스 전체에 그려서 확대 효과
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+        input = canvas;
+      }
+
+      const landmarks = eyeTrackerRef.current.process(input, now);
 
       if (landmarks) {
         const blink = blinkDetectorRef.current;
@@ -177,11 +217,19 @@ export function useTracker() {
           gazeValid = gaze.isCalibrated;
 
         if (!shouldFreeze && gaze.isCalibrated) {
+          // freeze → active 전환: 스무딩 버퍼 리셋 (stale 데이터 제거)
+          if (wasFrozenRef.current) {
+            gaze.resetSmoothing();
+            wasFrozenRef.current = false;
+          }
           const predicted = gaze.predict(features);
           gazeX = predicted.x;
           gazeY = predicted.y;
           lastGazeRef.current = { x: gazeX, y: gazeY };
           gazeValid = true;
+        }
+        if (shouldFreeze) {
+          wasFrozenRef.current = true;
         }
 
         setState({
@@ -197,6 +245,7 @@ export function useTracker() {
           headY: features.hy,
           noseX: features.nx,
           noseY: features.ny,
+          eyeLidOpen: features.ey,
           gazeX,
           gazeY,
           gazeValid,
@@ -239,11 +288,26 @@ export function useTracker() {
     gazeMapperRef.current.reset();
   }, []);
 
+  const zoomIn = useCallback(() => {
+    const next = Math.min(ZOOM_MAX, +(zoomLevelRef.current + ZOOM_STEP).toFixed(2));
+    zoomLevelRef.current = next;
+    setZoomLevelState(next);
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    const next = Math.max(ZOOM_MIN, +(zoomLevelRef.current - ZOOM_STEP).toFixed(2));
+    zoomLevelRef.current = next;
+    setZoomLevelState(next);
+  }, []);
+
   return {
     state,
     videoRef,
     gazeMapper: gazeMapperRef.current,
     calibrate,
     resetCalibration,
+    zoomLevel,
+    zoomIn,
+    zoomOut,
   };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { FRAMES_PER_POINT, CALIBRATION_SETTLE_FRAMES, CALIBRATION_GRID_ROWS, CALIBRATION_GRID_COLS } from "../config";
+import { FRAMES_PER_POINT, CALIBRATION_SETTLE_FRAMES, CALIBRATION_GRID_ROWS, CALIBRATION_GRID_COLS, EAR_THRESHOLD } from "../config";
 import type { TrackerState } from "../tracking/useTracker";
 import { GazeMapper, type CalibrationSample, type GazeFeatures } from "../tracking/GazeMapper";
 
@@ -38,8 +38,9 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
 
   // Collect frames while in collecting mode
   useEffect(() => {
-    // 눈 감은 프레임은 건너뜀 (홍채 랜드마크가 부정확하므로)
-    if (!collecting || !trackerState.faceDetected || trackerState.eyesClosed) return;
+    // 실제 깜빡임(EAR < 0.21)만 건너뜀
+    // (gaze freeze 임계값 0.26은 캘리브레이션에 너무 보수적 → 프레임 수집 지연 원인)
+    if (!collecting || !trackerState.faceDetected || trackerState.ear < EAR_THRESHOLD) return;
 
     frameBufferRef.current.push({
       rx: trackerState.irisRx,
@@ -48,6 +49,7 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
       hy: trackerState.headY,
       nx: trackerState.noseX,
       ny: trackerState.noseY,
+      ey: trackerState.eyeLidOpen,
     });
 
     if (frameBufferRef.current.length >= FRAMES_PER_POINT) {
@@ -115,7 +117,7 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
       {/* Instructions */}
       <p className="calibration-instruction">
         {collecting
-          ? "수집 중... 환자는 점을 계속 바라봐 주세요"
+          ? `수집 중... (${frameBufferRef.current.length}/${FRAMES_PER_POINT}) 환자는 점을 계속 바라봐 주세요`
           : "보호자: 환자가 점을 바라보면 Space를 누르세요"}
       </p>
       <p className="calibration-progress">

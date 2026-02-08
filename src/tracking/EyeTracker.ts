@@ -23,9 +23,9 @@ export class EyeTracker {
     });
   }
 
-  process(video: HTMLVideoElement, timestampMs: number): Landmarks | null {
+  process(source: HTMLVideoElement | HTMLCanvasElement, timestampMs: number): Landmarks | null {
     if (!this.landmarker) return null;
-    const result = this.landmarker.detectForVideo(video, timestampMs);
+    const result = this.landmarker.detectForVideo(source, timestampMs);
     if (result.faceLandmarks.length > 0) {
       return result.faceLandmarks[0];
     }

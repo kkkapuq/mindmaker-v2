@@ -9,7 +9,7 @@ import type { CalibrationSample } from "./tracking/GazeMapper";
 type Screen = "loading" | "calibrating" | "communicating";
 
 export function App() {
-  const { state, videoRef, calibrate, resetCalibration } = useTracker();
+  const { state, videoRef, calibrate, resetCalibration, zoomLevel, zoomIn, zoomOut } = useTracker();
   const [screen, setScreen] = useState<Screen>("loading");
   const [debug, setDebug] = useState(false);
 
@@ -53,6 +53,15 @@ export function App() {
       if (e.code === "KeyQ") {
         window.close();
       }
+      // 줌 조절: +/- 키
+      if (e.code === "Equal" || e.code === "NumpadAdd") {
+        e.preventDefault();
+        zoomIn();
+      }
+      if (e.code === "Minus" || e.code === "NumpadSubtract") {
+        e.preventDefault();
+        zoomOut();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -67,6 +76,11 @@ export function App() {
         playsInline
         muted
       />
+
+      {/* Zoom indicator */}
+      <div className="zoom-indicator">
+        x{zoomLevel.toFixed(1)} <span className="zoom-hint">+/-</span>
+      </div>
 
       {/* Loading */}
       {state.isLoading && (
