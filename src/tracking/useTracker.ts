@@ -21,6 +21,8 @@ export interface TrackerState {
   irisRy: number;
   headX: number;
   headY: number;
+  noseX: number;
+  noseY: number;
   gazeX: number;
   gazeY: number;
   gazeValid: boolean;
@@ -41,6 +43,8 @@ const INITIAL_STATE: TrackerState = {
   irisRy: 0,
   headX: 0,
   headY: 0,
+  noseX: 0,
+  noseY: 0,
   gazeX: 0,
   gazeY: 0,
   gazeValid: false,
@@ -75,7 +79,7 @@ export function useTracker() {
     async function init() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, facingMode: "user" },
+          video: { width: 1280, height: 720, facingMode: "user" },
         });
 
         if (cancelled) {
@@ -191,6 +195,8 @@ export function useTracker() {
           irisRy: features.ry,
           headX: features.hx,
           headY: features.hy,
+          noseX: features.nx,
+          noseY: features.ny,
           gazeX,
           gazeY,
           gazeValid,

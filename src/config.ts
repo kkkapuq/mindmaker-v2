@@ -31,7 +31,7 @@ export const GAZE_FREEZE_EAR = 0.26; // 이 이하면 시선 업데이트 중단
 export const GAZE_RECOVERY_FRAMES = 8; // 눈 뜬 후 안정화 대기 프레임 수
 
 // 눈 감아서 선택
-export const EYE_CLOSE_SELECT_SEC = 2.0; // 이 시간 이상 눈 감으면 선택
+export const EYE_CLOSE_SELECT_SEC = 1.0; // 이 시간 이상 눈 감으면 선택
 
 // Calibration
 export const CALIBRATION_POINTS = 25; // 5x5 그리드
@@ -40,12 +40,12 @@ export const CALIBRATION_GRID_COLS = 5;
 export const FRAMES_PER_POINT = 30;
 export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림 (안정화 대기)
 export const CALIBRATION_OUTLIER_STD = 1.5; // 이상치 제거 기준 (표준편차 배수)
-export const RIDGE_LAMBDA = 1.0; // 릿지 회귀 정규화 계수 (과적합 방지)
+export const RIDGE_LAMBDA = 1.5; // 릿지 회귀 정규화 계수 (과적합 방지, 1.0→1.5)
 
 // Gaze smoothing
-export const SMOOTHING_ALPHA = 0.05; // 낮을수록 부드러움 (이전: 0.12)
-export const MOVING_AVG_SIZE = 15; // 이동 평균 버퍼 크기 (이전: 8)
-export const MIN_MOVE_PX = 40; // 이 픽셀 이하 움직임은 무시 (이전: 15)
+export const SMOOTHING_ALPHA = 0.15; // 낮을수록 부드러움 (0.05→0.15: 반응성 향상)
+export const MOVING_AVG_SIZE = 6; // 이동 평균 버퍼 크기 (15→6: 지연 감소)
+export const MIN_MOVE_PX = 8; // 이 픽셀 이하 움직임은 무시 (40→8: 데드존 축소)
 
 // Dwell selection
 export const DWELL_TIME_SEC = 1.5;
@@ -62,7 +62,7 @@ export interface BoardCategory {
 export const BOARD_CATEGORIES: BoardCategory[] = [
   {
     name: "인사 및 안부",
-    items: ["어서와", "안녕", "잘지냈어?", "밥 먹었어?", "보고싶었어", "잘 자", "좋은 하루 보내"],
+    items: ["어서와", "안녕", "잘지냈어?", "밥 먹었어?", "보고싶었어", "잘 가", "좋은 하루 보내"],
   },
   {
     name: "의사소통",

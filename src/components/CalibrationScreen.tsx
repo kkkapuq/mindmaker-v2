@@ -8,7 +8,7 @@ interface Props {
   onComplete: (samples: CalibrationSample[]) => void;
 }
 
-const MARGIN = 0.1; // 10% from edges
+const MARGIN = 0.05; // 5% from edges (10%→5%: 가장자리 커버리지 향상)
 
 function generatePoints(): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
@@ -46,6 +46,8 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
       ry: trackerState.irisRy,
       hx: trackerState.headX,
       hy: trackerState.headY,
+      nx: trackerState.noseX,
+      ny: trackerState.noseY,
     });
 
     if (frameBufferRef.current.length >= FRAMES_PER_POINT) {

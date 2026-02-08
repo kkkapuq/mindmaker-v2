@@ -120,6 +120,7 @@ body {
   justify-content: center;
   animation: pulse 1.5s ease-in-out infinite;
   transition: background 0.3s;
+  z-index: 200; /* 카메라 프리뷰(150) 위에 표시 */
 }
 
 .calibration-dot.collecting {

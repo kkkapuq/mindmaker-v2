@@ -7,8 +7,6 @@ import {
   RIGHT_EYE_INNER,
   RIGHT_EYE_OUTER,
   NOSE_TIP,
-  FOREHEAD,
-  CHIN,
   SMOOTHING_ALPHA,
   MOVING_AVG_SIZE,
   MIN_MOVE_PX,
@@ -19,8 +17,10 @@ import {
 export interface GazeFeatures {
   rx: number;
   ry: number;
-  hx: number; // 머리 수평 위치 (코 끝 기준)
-  hy: number; // 머리 수직 위치 (코 끝 기준)
+  hx: number; // 머리 회전 수평 (코 끝 - 얼굴 중심, 정규화)
+  hy: number; // 머리 회전 수직
+  nx: number; // 절대 얼굴 위치 X (카메라 정규화 좌표, 머리 이동 보상용)
+  ny: number; // 절대 얼굴 위치 Y
 }
 
 export interface CalibrationSample extends GazeFeatures {
@@ -30,10 +30,16 @@ export interface CalibrationSample extends GazeFeatures {
 
 // --- Minimal linear algebra ---
 
-/** 확장 특징 벡터: [1, rx, ry, hx, hy, rx*ry, rx*hx, ry*hy, rx², ry²] (10개) */
+/**
+ * 확장 특징 벡터: [1, rx, ry, hx, hy, nx, ny, rx*ry, rx², ry²] (10개)
+ *
+ * nx, ny: 절대 얼굴 위치 → 머리 이동(translation) 보상
+ * hx, hy: 얼굴 내 상대 코 위치 → 머리 회전(rotation) 보상
+ * 이전 rx*hx, ry*hy 교차항을 nx, ny로 교체 (이동 보상이 더 중요)
+ */
 function polyFeatures(f: GazeFeatures): number[] {
-  const { rx, ry, hx, hy } = f;
-  return [1, rx, ry, hx, hy, rx * ry, rx * hx, ry * hy, rx * rx, ry * ry];
+  const { rx, ry, hx, hy, nx, ny } = f;
+  return [1, rx, ry, hx, hy, nx, ny, rx * ry, rx * rx, ry * ry];
 }
 
 function transpose(A: number[][]): number[][] {
@@ -193,22 +199,23 @@ export class GazeMapper {
     const rRx = rW > 1e-6 ? (rc.x - rInner.x) / rW : 0.5;
     const rRy = rW > 1e-6 ? (rc.y - rMidY) / rW : 0;
 
-    // 머리 위치: 코 끝 좌표를 이마↔턱 거리로 정규화
+    // 머리 회전: 코 끝 좌표를 눈 내측 꼬리 간 거리로 정규화
+    // (기존 이마↔턱 거리는 입 벌림에 따라 불안정 → 눈 기반으로 변경)
     const nose = landmarks[NOSE_TIP];
-    const forehead = landmarks[FOREHEAD];
-    const chin = landmarks[CHIN];
-    const faceH = Math.abs(chin.y - forehead.y);
-    const faceCenterX = (forehead.x + chin.x) / 2;
-    const faceCenterY = (forehead.y + chin.y) / 2;
+    const eyeMidX = (lInner.x + rInner.x) / 2;
+    const eyeMidY = (lInner.y + rInner.y) / 2;
+    const interEyeDist = Math.hypot(rInner.x - lInner.x, rInner.y - lInner.y);
 
-    const hx = faceH > 1e-6 ? (nose.x - faceCenterX) / faceH : 0;
-    const hy = faceH > 1e-6 ? (nose.y - faceCenterY) / faceH : 0;
+    const hx = interEyeDist > 1e-6 ? (nose.x - eyeMidX) / interEyeDist : 0;
+    const hy = interEyeDist > 1e-6 ? (nose.y - eyeMidY) / interEyeDist : 0;
 
     return {
       rx: (lRx + rRx) / 2,
       ry: (lRy + rRy) / 2,
       hx,
       hy,
+      nx: nose.x, // 절대 얼굴 위치 (카메라 정규화 좌표 0~1)
+      ny: nose.y,
     };
   }
 
@@ -296,12 +303,22 @@ export class GazeMapper {
       src.map((f) => f.hy),
       CALIBRATION_OUTLIER_STD
     );
+    const nxVals = removeOutliers(
+      src.map((f) => f.nx),
+      CALIBRATION_OUTLIER_STD
+    );
+    const nyVals = removeOutliers(
+      src.map((f) => f.ny),
+      CALIBRATION_OUTLIER_STD
+    );
 
     return {
       rx: rxVals.reduce((a, b) => a + b, 0) / rxVals.length,
       ry: ryVals.reduce((a, b) => a + b, 0) / ryVals.length,
       hx: hxVals.reduce((a, b) => a + b, 0) / hxVals.length,
       hy: hyVals.reduce((a, b) => a + b, 0) / hyVals.length,
+      nx: nxVals.reduce((a, b) => a + b, 0) / nxVals.length,
+      ny: nyVals.reduce((a, b) => a + b, 0) / nyVals.length,
     };
   }
 
