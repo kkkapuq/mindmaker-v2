@@ -3,7 +3,6 @@ import {
   BOARD_LABELS,
   BOARD_ROWS,
   BOARD_COLS,
-  DWELL_TIME_SEC,
   SELECTION_COOLDOWN_SEC,
   HIT_TEST_PADDING_PX,
 } from "../config";
@@ -17,11 +16,9 @@ interface Props {
 export function CommBoard({ trackerState, onSelect }: Props) {
   const buttonRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [dwellProgress, setDwellProgress] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [lastMessage, setLastMessage] = useState("");
 
-  const dwellStartRef = useRef(0);
   const lastSelectionRef = useRef(0);
 
   const triggerSelect = useCallback(
@@ -33,7 +30,6 @@ export function CommBoard({ trackerState, onSelect }: Props) {
       const label = BOARD_LABELS[index];
       setSelectedIndex(index);
       setLastMessage(label);
-      setDwellProgress(0);
       onSelect(label);
 
       // TTS
@@ -47,11 +43,10 @@ export function CommBoard({ trackerState, onSelect }: Props) {
     [onSelect]
   );
 
-  // Hit test + dwell logic
+  // Hit test — 시선이 어떤 버튼 위에 있는지 하이라이트만
   useEffect(() => {
     if (!trackerState.gazeValid) {
       setHoveredIndex(null);
-      setDwellProgress(0);
       return;
     }
 
@@ -74,25 +69,10 @@ export function CommBoard({ trackerState, onSelect }: Props) {
       }
     }
 
-    if (hit !== hoveredIndex) {
-      setHoveredIndex(hit);
-      setDwellProgress(0);
-      if (hit !== null) {
-        dwellStartRef.current = performance.now();
-      }
-    } else if (hit !== null) {
-      const elapsed = (performance.now() - dwellStartRef.current) / 1000;
-      const progress = Math.min(elapsed / DWELL_TIME_SEC, 1);
-      setDwellProgress(progress);
+    setHoveredIndex(hit);
+  }, [trackerState]);
 
-      if (progress >= 1) {
-        triggerSelect(hit);
-        setHoveredIndex(null);
-      }
-    }
-  }, [trackerState, hoveredIndex, triggerSelect]);
-
-  // Double blink instant select
+  // 더블블링크로만 선택
   useEffect(() => {
     if (trackerState.doubleBlink && hoveredIndex !== null) {
       triggerSelect(hoveredIndex);
@@ -120,14 +100,6 @@ export function CommBoard({ trackerState, onSelect }: Props) {
               className={className}
             >
               <span className="comm-button-label">{label}</span>
-              {hoveredIndex === i && (
-                <div className="dwell-bar">
-                  <div
-                    className="dwell-fill"
-                    style={{ width: `${dwellProgress * 100}%` }}
-                  />
-                </div>
-              )}
             </div>
           );
         })}

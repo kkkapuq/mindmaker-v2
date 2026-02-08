@@ -15,6 +15,11 @@ export const LEFT_EYE_BOTTOM = 374;
 export const RIGHT_EYE_TOP = 159;
 export const RIGHT_EYE_BOTTOM = 145;
 
+// Head pose landmarks
+export const NOSE_TIP = 4;
+export const FOREHEAD = 10;
+export const CHIN = 152;
+
 // Blink detection
 export const EAR_THRESHOLD = 0.21;
 export const DOUBLE_BLINK_WINDOW_SEC = 0.5;
@@ -22,7 +27,9 @@ export const BLINK_MIN_FRAMES = 1;
 export const BLINK_MAX_FRAMES = 5;
 
 // Calibration
-export const CALIBRATION_POINTS = 9;
+export const CALIBRATION_POINTS = 16; // 4x4 그리드
+export const CALIBRATION_GRID_ROWS = 4;
+export const CALIBRATION_GRID_COLS = 4;
 export const FRAMES_PER_POINT = 30;
 export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림 (안정화 대기)
 export const CALIBRATION_OUTLIER_STD = 1.5; // 이상치 제거 기준 (표준편차 배수)

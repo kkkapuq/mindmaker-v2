@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { FRAMES_PER_POINT, CALIBRATION_SETTLE_FRAMES } from "../config";
+import { FRAMES_PER_POINT, CALIBRATION_SETTLE_FRAMES, CALIBRATION_GRID_ROWS, CALIBRATION_GRID_COLS } from "../config";
 import type { TrackerState } from "../tracking/useTracker";
-import { GazeMapper, type CalibrationSample } from "../tracking/GazeMapper";
+import { GazeMapper, type CalibrationSample, type GazeFeatures } from "../tracking/GazeMapper";
 
 interface Props {
   trackerState: TrackerState;
@@ -17,11 +17,11 @@ function generatePoints(): { x: number; y: number }[] {
   const mx = w * MARGIN;
   const my = h * MARGIN;
 
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
+  for (let r = 0; r < CALIBRATION_GRID_ROWS; r++) {
+    for (let c = 0; c < CALIBRATION_GRID_COLS; c++) {
       points.push({
-        x: mx + (c * (w - 2 * mx)) / 2,
-        y: my + (r * (h - 2 * my)) / 2,
+        x: mx + (c * (w - 2 * mx)) / (CALIBRATION_GRID_COLS - 1),
+        y: my + (r * (h - 2 * my)) / (CALIBRATION_GRID_ROWS - 1),
       });
     }
   }
@@ -32,7 +32,7 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
   const [points] = useState(generatePoints);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [collecting, setCollecting] = useState(false);
-  const frameBufferRef = useRef<{ rx: number; ry: number }[]>([]);
+  const frameBufferRef = useRef<GazeFeatures[]>([]);
   const samplesRef = useRef<CalibrationSample[]>([]);
   const doneRef = useRef(false);
 
@@ -43,6 +43,8 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
     frameBufferRef.current.push({
       rx: trackerState.irisRx,
       ry: trackerState.irisRy,
+      hx: trackerState.headX,
+      hy: trackerState.headY,
     });
 
     if (frameBufferRef.current.length >= FRAMES_PER_POINT) {
@@ -53,8 +55,7 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
       );
 
       samplesRef.current.push({
-        rx: cleaned.rx,
-        ry: cleaned.ry,
+        ...cleaned,
         screenX: points[currentIndex].x,
         screenY: points[currentIndex].y,
       });

@@ -3,6 +3,8 @@ import { EyeTracker } from "./EyeTracker";
 import { BlinkDetector } from "./BlinkDetector";
 import { GazeMapper, type CalibrationSample } from "./GazeMapper";
 
+import type { GazeFeatures } from "./GazeMapper";
+
 export interface TrackerState {
   isLoading: boolean;
   error: string | null;
@@ -12,6 +14,8 @@ export interface TrackerState {
   doubleBlink: boolean;
   irisRx: number;
   irisRy: number;
+  headX: number;
+  headY: number;
   gazeX: number;
   gazeY: number;
   gazeValid: boolean;
@@ -27,6 +31,8 @@ const INITIAL_STATE: TrackerState = {
   doubleBlink: false,
   irisRx: 0,
   irisRy: 0,
+  headX: 0,
+  headY: 0,
   gazeX: 0,
   gazeY: 0,
   gazeValid: false,
@@ -43,6 +49,7 @@ export function useTracker() {
   const runningRef = useRef(false);
   const prevTimeRef = useRef(0);
   const fpsRef = useRef(0);
+  const lastGazeRef = useRef({ x: 0, y: 0 });
 
   // Initialize camera + MediaPipe
   useEffect(() => {
@@ -105,16 +112,24 @@ export function useTracker() {
         blink.update(landmarks);
 
         const gaze = gazeMapperRef.current;
-        const { rx, ry } = gaze.extractFeatures(landmarks);
 
-        let gazeX = 0,
-          gazeY = 0,
-          gazeValid = false;
-        if (gaze.isCalibrated) {
-          const predicted = gaze.predict(rx, ry);
-          gazeX = predicted.x;
-          gazeY = predicted.y;
-          gazeValid = true;
+        // 눈 감는 중이면 시선 업데이트 건너뛰기 (마지막 위치 유지)
+        const isBlinking = blink.ear < 0.21;
+
+        let features: GazeFeatures = { rx: 0, ry: 0, hx: 0, hy: 0 };
+        let gazeX = lastGazeRef.current.x,
+          gazeY = lastGazeRef.current.y,
+          gazeValid = gaze.isCalibrated;
+
+        if (!isBlinking) {
+          features = gaze.extractFeatures(landmarks);
+          if (gaze.isCalibrated) {
+            const predicted = gaze.predict(features);
+            gazeX = predicted.x;
+            gazeY = predicted.y;
+            lastGazeRef.current = { x: gazeX, y: gazeY };
+            gazeValid = true;
+          }
         }
 
         setState({
@@ -124,8 +139,10 @@ export function useTracker() {
           ear: blink.ear,
           blinkCount: blink.blinkCount,
           doubleBlink: blink.doubleBlink,
-          irisRx: rx,
-          irisRy: ry,
+          irisRx: features.rx,
+          irisRy: features.ry,
+          headX: features.hx,
+          headY: features.hy,
           gazeX,
           gazeY,
           gazeValid,
