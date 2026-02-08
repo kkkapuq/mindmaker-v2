@@ -38,7 +38,8 @@ export function CalibrationScreen({ trackerState, onComplete }: Props) {
 
   // Collect frames while in collecting mode
   useEffect(() => {
-    if (!collecting || !trackerState.faceDetected) return;
+    // 눈 감은 프레임은 건너뜀 (홍채 랜드마크가 부정확하므로)
+    if (!collecting || !trackerState.faceDetected || trackerState.eyesClosed) return;
 
     frameBufferRef.current.push({
       rx: trackerState.irisRx,

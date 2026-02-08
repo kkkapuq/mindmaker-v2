@@ -6,10 +6,6 @@ import {
   LEFT_EYE_OUTER,
   RIGHT_EYE_INNER,
   RIGHT_EYE_OUTER,
-  LEFT_EYE_TOP,
-  LEFT_EYE_BOTTOM,
-  RIGHT_EYE_TOP,
-  RIGHT_EYE_BOTTOM,
   NOSE_TIP,
   FOREHEAD,
   CHIN,
@@ -17,6 +13,7 @@ import {
   MOVING_AVG_SIZE,
   MIN_MOVE_PX,
   CALIBRATION_OUTLIER_STD,
+  RIDGE_LAMBDA,
 } from "../config";
 
 export interface GazeFeatures {
@@ -107,9 +104,19 @@ function gaussianSolve(A: number[][], b: number[]): number[] | null {
   return x;
 }
 
-function solveLeastSquares(A: number[][], b: number[]): number[] | null {
+function solveLeastSquares(
+  A: number[][],
+  b: number[],
+  lambda = 0
+): number[] | null {
   const At = transpose(A);
   const AtA = matMul(At, A);
+  // 릿지 회귀: 대각선에 λ 추가 → 과적합 방지 + 수치 안정성 향상
+  if (lambda > 0) {
+    for (let i = 0; i < AtA.length; i++) {
+      AtA[i][i] += lambda;
+    }
+  }
   const Atb = matVecMul(At, b);
   return gaussianSolve(AtA, Atb);
 }
@@ -131,6 +138,9 @@ function removeOutliers(values: number[], stdMultiplier: number): number[] {
 export class GazeMapper {
   private coeffsX: number[] | null = null;
   private coeffsY: number[] | null = null;
+  // 특징 정규화 파라미터 (캘리브레이션 시 저장)
+  private featMean: number[] | null = null;
+  private featStd: number[] | null = null;
   private smoothX = 0;
   private smoothY = 0;
   private outputX = 0;
@@ -156,29 +166,32 @@ export class GazeMapper {
     return { x: sx / indices.length, y: sy / indices.length };
   }
 
-  /** 홍채 상대 위치 + 머리 위치를 포함한 특징 추출 */
+  /**
+   * 홍채 상대 위치 + 머리 위치를 포함한 특징 추출
+   *
+   * ry는 눈꼬리(inner/outer corner) 중점을 기준으로 계산.
+   * 기존 눈꺼풀 상단/하단 기준은 위를 볼 때 눈꺼풀이 함께 올라가서
+   * ry 변화가 거의 없었음 → 상단 추적 정확도 저하 원인.
+   * 눈꼬리는 뼈 위의 고정점이라 시선 방향에 무관하게 안정적.
+   */
   extractFeatures(landmarks: Landmarks): GazeFeatures {
     // Left eye iris relative position
     const lc = this.irisCenter(landmarks, LEFT_IRIS);
-    const lInnerX = landmarks[LEFT_EYE_INNER].x;
-    const lOuterX = landmarks[LEFT_EYE_OUTER].x;
-    const lTopY = landmarks[LEFT_EYE_TOP].y;
-    const lBotY = landmarks[LEFT_EYE_BOTTOM].y;
-    const lW = Math.abs(lOuterX - lInnerX);
-    const lH = Math.abs(lBotY - lTopY);
-    const lRx = lW > 1e-6 ? (lc.x - lInnerX) / lW : 0.5;
-    const lRy = lH > 1e-6 ? (lc.y - lTopY) / lH : 0.5;
+    const lInner = landmarks[LEFT_EYE_INNER];
+    const lOuter = landmarks[LEFT_EYE_OUTER];
+    const lW = Math.abs(lOuter.x - lInner.x);
+    const lMidY = (lInner.y + lOuter.y) / 2; // 눈꼬리 중점 (안정적 기준선)
+    const lRx = lW > 1e-6 ? (lc.x - lInner.x) / lW : 0.5;
+    const lRy = lW > 1e-6 ? (lc.y - lMidY) / lW : 0; // 눈 너비로 정규화
 
     // Right eye iris relative position
     const rc = this.irisCenter(landmarks, RIGHT_IRIS);
-    const rInnerX = landmarks[RIGHT_EYE_INNER].x;
-    const rOuterX = landmarks[RIGHT_EYE_OUTER].x;
-    const rTopY = landmarks[RIGHT_EYE_TOP].y;
-    const rBotY = landmarks[RIGHT_EYE_BOTTOM].y;
-    const rW = Math.abs(rOuterX - rInnerX);
-    const rH = Math.abs(rBotY - rTopY);
-    const rRx = rW > 1e-6 ? (rc.x - rInnerX) / rW : 0.5;
-    const rRy = rH > 1e-6 ? (rc.y - rTopY) / rH : 0.5;
+    const rInner = landmarks[RIGHT_EYE_INNER];
+    const rOuter = landmarks[RIGHT_EYE_OUTER];
+    const rW = Math.abs(rOuter.x - rInner.x);
+    const rMidY = (rInner.y + rOuter.y) / 2;
+    const rRx = rW > 1e-6 ? (rc.x - rInner.x) / rW : 0.5;
+    const rRy = rW > 1e-6 ? (rc.y - rMidY) / rW : 0;
 
     // 머리 위치: 코 끝 좌표를 이마↔턱 거리로 정규화
     const nose = landmarks[NOSE_TIP];
@@ -199,15 +212,56 @@ export class GazeMapper {
     };
   }
 
-  calibrate(samples: CalibrationSample[]): boolean {
-    if (samples.length < 10) return false; // 10개 계수에 최소 10개 샘플 필요
+  /**
+   * 특징 벡터를 정규화 (column 0 = intercept는 제외).
+   * 릿지 회귀가 모든 특징에 균등하게 적용되려면 스케일 통일 필수.
+   * (rx ≈ [0.2, 0.8] vs ry ≈ [-0.05, 0.05] 같은 차이가 있으면
+   *  릿지가 작은 값의 계수를 과도하게 압축함)
+   */
+  private normalizeFeatures(rawA: number[][]): number[][] {
+    const nCols = rawA[0].length;
+    const n = rawA.length;
+    const mean = Array(nCols).fill(0);
+    const std = Array(nCols).fill(1);
 
-    const A = samples.map((s) => polyFeatures(s));
+    // column 0은 상수항(1)이므로 정규화하지 않음
+    for (let j = 1; j < nCols; j++) {
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += rawA[i][j];
+      mean[j] = sum / n;
+    }
+    for (let j = 1; j < nCols; j++) {
+      let sumSq = 0;
+      for (let i = 0; i < n; i++) sumSq += (rawA[i][j] - mean[j]) ** 2;
+      std[j] = Math.sqrt(sumSq / n);
+      if (std[j] < 1e-9) std[j] = 1; // 상수 열 보호
+    }
+
+    this.featMean = mean;
+    this.featStd = std;
+
+    return rawA.map((row) =>
+      row.map((v, j) => (j === 0 ? 1 : (v - mean[j]) / std[j]))
+    );
+  }
+
+  private applyNormalization(feat: number[]): number[] {
+    if (!this.featMean || !this.featStd) return feat;
+    return feat.map((v, j) =>
+      j === 0 ? 1 : (v - this.featMean![j]) / this.featStd![j]
+    );
+  }
+
+  calibrate(samples: CalibrationSample[]): boolean {
+    if (samples.length < 10) return false;
+
+    const rawA = samples.map((s) => polyFeatures(s));
+    const A = this.normalizeFeatures(rawA);
     const bx = samples.map((s) => s.screenX);
     const by = samples.map((s) => s.screenY);
 
-    const cx = solveLeastSquares(A, bx);
-    const cy = solveLeastSquares(A, by);
+    const cx = solveLeastSquares(A, bx, RIDGE_LAMBDA);
+    const cy = solveLeastSquares(A, by, RIDGE_LAMBDA);
     if (!cx || !cy) return false;
 
     this.coeffsX = cx;
@@ -254,7 +308,8 @@ export class GazeMapper {
   predict(features: GazeFeatures): { x: number; y: number } {
     if (!this.coeffsX || !this.coeffsY) return { x: 0, y: 0 };
 
-    const feat = polyFeatures(features);
+    const rawFeat = polyFeatures(features);
+    const feat = this.applyNormalization(rawFeat);
     const rawX = feat.reduce((s, f, i) => s + f * this.coeffsX![i], 0);
     const rawY = feat.reduce((s, f, i) => s + f * this.coeffsY![i], 0);
 
@@ -299,6 +354,8 @@ export class GazeMapper {
   reset(): void {
     this.coeffsX = null;
     this.coeffsY = null;
+    this.featMean = null;
+    this.featStd = null;
     this.firstPrediction = true;
     this.smoothX = 0;
     this.smoothY = 0;

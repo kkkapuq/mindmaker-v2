@@ -34,12 +34,13 @@ export const GAZE_RECOVERY_FRAMES = 8; // 눈 뜬 후 안정화 대기 프레임
 export const EYE_CLOSE_SELECT_SEC = 2.0; // 이 시간 이상 눈 감으면 선택
 
 // Calibration
-export const CALIBRATION_POINTS = 16; // 4x4 그리드
-export const CALIBRATION_GRID_ROWS = 4;
-export const CALIBRATION_GRID_COLS = 4;
+export const CALIBRATION_POINTS = 25; // 5x5 그리드
+export const CALIBRATION_GRID_ROWS = 5;
+export const CALIBRATION_GRID_COLS = 5;
 export const FRAMES_PER_POINT = 30;
 export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림 (안정화 대기)
 export const CALIBRATION_OUTLIER_STD = 1.5; // 이상치 제거 기준 (표준편차 배수)
+export const RIDGE_LAMBDA = 1.0; // 릿지 회귀 정규화 계수 (과적합 방지)
 
 // Gaze smoothing
 export const SMOOTHING_ALPHA = 0.05; // 낮을수록 부드러움 (이전: 0.12)

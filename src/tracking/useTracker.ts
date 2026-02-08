@@ -165,20 +165,19 @@ export function useTracker() {
           recoveryCountRef.current = GAZE_RECOVERY_FRAMES;
         }
 
-        let features: GazeFeatures = { rx: 0, ry: 0, hx: 0, hy: 0 };
+        // 항상 특징 추출 (캘리브레이션 중에도 정확한 값 필요)
+        // 시선 예측(화면좌표 매핑)만 freeze 적용
+        const features = gaze.extractFeatures(landmarks);
         let gazeX = lastGazeRef.current.x,
           gazeY = lastGazeRef.current.y,
           gazeValid = gaze.isCalibrated;
 
-        if (!shouldFreeze) {
-          features = gaze.extractFeatures(landmarks);
-          if (gaze.isCalibrated) {
-            const predicted = gaze.predict(features);
-            gazeX = predicted.x;
-            gazeY = predicted.y;
-            lastGazeRef.current = { x: gazeX, y: gazeY };
-            gazeValid = true;
-          }
+        if (!shouldFreeze && gaze.isCalibrated) {
+          const predicted = gaze.predict(features);
+          gazeX = predicted.x;
+          gazeY = predicted.y;
+          lastGazeRef.current = { x: gazeX, y: gazeY };
+          gazeValid = true;
         }
 
         setState({
