@@ -2,6 +2,11 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { EyeTracker } from "./EyeTracker";
 import { BlinkDetector } from "./BlinkDetector";
 import { GazeMapper, type CalibrationSample } from "./GazeMapper";
+import {
+  GAZE_FREEZE_EAR,
+  GAZE_RECOVERY_FRAMES,
+  EYE_CLOSE_SELECT_SEC,
+} from "../config";
 
 import type { GazeFeatures } from "./GazeMapper";
 
@@ -20,6 +25,9 @@ export interface TrackerState {
   gazeY: number;
   gazeValid: boolean;
   fps: number;
+  eyesClosed: boolean; // 눈 감고 있는지
+  eyeClosedSec: number; // 눈 감은 지속 시간(초)
+  eyeCloseSelect: boolean; // 2초 이상 감아서 선택 트리거
 }
 
 const INITIAL_STATE: TrackerState = {
@@ -37,6 +45,9 @@ const INITIAL_STATE: TrackerState = {
   gazeY: 0,
   gazeValid: false,
   fps: 0,
+  eyesClosed: false,
+  eyeClosedSec: 0,
+  eyeCloseSelect: false,
 };
 
 export function useTracker() {
@@ -51,13 +62,18 @@ export function useTracker() {
   const fpsRef = useRef(0);
   const lastGazeRef = useRef({ x: 0, y: 0 });
 
-  // Initialize camera + MediaPipe
+  // Gaze freeze state
+  const recoveryCountRef = useRef(0); // 눈 뜬 후 남은 안정화 프레임
+
+  // 눈 감은 시간 추적
+  const eyeClosedStartRef = useRef(0); // 눈 감기 시작한 timestamp (0 = 안 감음)
+  const eyeCloseSelectFiredRef = useRef(false); // 이미 선택 발동했는지
+
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
       try {
-        // Request camera
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480, facingMode: "user" },
         });
@@ -72,7 +88,6 @@ export function useTracker() {
         video.srcObject = stream;
         await video.play();
 
-        // Initialize MediaPipe
         await eyeTrackerRef.current.init();
         if (cancelled) return;
 
@@ -113,15 +128,49 @@ export function useTracker() {
 
         const gaze = gazeMapperRef.current;
 
-        // 눈 감는 중이면 시선 업데이트 건너뛰기 (마지막 위치 유지)
-        const isBlinking = blink.ear < 0.21;
+        // --- 눈 감음 판정 (GAZE_FREEZE_EAR: 0.26) ---
+        const eyesClosed = blink.ear < GAZE_FREEZE_EAR;
+
+        // --- 눈 감은 지속시간 추적 ---
+        let eyeClosedSec = 0;
+        let eyeCloseSelect = false;
+
+        if (eyesClosed) {
+          if (eyeClosedStartRef.current === 0) {
+            eyeClosedStartRef.current = now;
+            eyeCloseSelectFiredRef.current = false;
+          }
+          eyeClosedSec = (now - eyeClosedStartRef.current) / 1000;
+
+          if (
+            eyeClosedSec >= EYE_CLOSE_SELECT_SEC &&
+            !eyeCloseSelectFiredRef.current
+          ) {
+            eyeCloseSelect = true;
+            eyeCloseSelectFiredRef.current = true;
+          }
+        } else {
+          eyeClosedStartRef.current = 0;
+        }
+
+        // --- 시선 업데이트 판정 ---
+        let shouldFreeze = eyesClosed;
+
+        if (!eyesClosed && recoveryCountRef.current > 0) {
+          // 눈 뜬 직후 안정화 대기
+          shouldFreeze = true;
+          recoveryCountRef.current--;
+        } else if (eyesClosed) {
+          // 눈 감으면 recovery 카운터 리셋
+          recoveryCountRef.current = GAZE_RECOVERY_FRAMES;
+        }
 
         let features: GazeFeatures = { rx: 0, ry: 0, hx: 0, hy: 0 };
         let gazeX = lastGazeRef.current.x,
           gazeY = lastGazeRef.current.y,
           gazeValid = gaze.isCalibrated;
 
-        if (!isBlinking) {
+        if (!shouldFreeze) {
           features = gaze.extractFeatures(landmarks);
           if (gaze.isCalibrated) {
             const predicted = gaze.predict(features);
@@ -147,6 +196,9 @@ export function useTracker() {
           gazeY,
           gazeValid,
           fps: fpsRef.current,
+          eyesClosed,
+          eyeClosedSec,
+          eyeCloseSelect,
         });
       } else {
         setState((s) => ({

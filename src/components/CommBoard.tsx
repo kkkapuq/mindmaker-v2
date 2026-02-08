@@ -5,6 +5,7 @@ import {
   BOARD_COLS,
   SELECTION_COOLDOWN_SEC,
   HIT_TEST_PADDING_PX,
+  EYE_CLOSE_SELECT_SEC,
 } from "../config";
 import type { TrackerState } from "../tracking/useTracker";
 
@@ -72,12 +73,12 @@ export function CommBoard({ trackerState, onSelect }: Props) {
     setHoveredIndex(hit);
   }, [trackerState]);
 
-  // 더블블링크로만 선택
+  // 눈 2초 이상 감으면 선택
   useEffect(() => {
-    if (trackerState.doubleBlink && hoveredIndex !== null) {
+    if (trackerState.eyeCloseSelect && hoveredIndex !== null) {
       triggerSelect(hoveredIndex);
     }
-  }, [trackerState.doubleBlink, hoveredIndex, triggerSelect]);
+  }, [trackerState.eyeCloseSelect, hoveredIndex, triggerSelect]);
 
   return (
     <div className="comm-board">
@@ -104,6 +105,21 @@ export function CommBoard({ trackerState, onSelect }: Props) {
           );
         })}
       </div>
+
+      {/* 눈 감은 진행률 표시 */}
+      {trackerState.eyesClosed && hoveredIndex !== null && (
+        <div className="eye-close-indicator">
+          <div
+            className="eye-close-fill"
+            style={{
+              width: `${Math.min(trackerState.eyeClosedSec / EYE_CLOSE_SELECT_SEC, 1) * 100}%`,
+            }}
+          />
+          <span className="eye-close-text">
+            눈 감는 중... {trackerState.eyeClosedSec.toFixed(1)}s
+          </span>
+        </div>
+      )}
 
       {lastMessage && (
         <div className="comm-status">선택: {lastMessage}</div>

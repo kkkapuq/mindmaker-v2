@@ -26,6 +26,13 @@ export const DOUBLE_BLINK_WINDOW_SEC = 0.5;
 export const BLINK_MIN_FRAMES = 1;
 export const BLINK_MAX_FRAMES = 5;
 
+// Gaze freeze (눈 감을 때 포인터 고정)
+export const GAZE_FREEZE_EAR = 0.26; // 이 이하면 시선 업데이트 중단 (EAR_THRESHOLD보다 높게)
+export const GAZE_RECOVERY_FRAMES = 8; // 눈 뜬 후 안정화 대기 프레임 수
+
+// 눈 감아서 선택
+export const EYE_CLOSE_SELECT_SEC = 2.0; // 이 시간 이상 눈 감으면 선택
+
 // Calibration
 export const CALIBRATION_POINTS = 16; // 4x4 그리드
 export const CALIBRATION_GRID_ROWS = 4;

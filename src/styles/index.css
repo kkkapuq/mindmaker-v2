@@ -39,6 +39,22 @@ body {
   position: relative;
 }
 
+/* ========== Camera Preview ========== */
+
+.camera-preview {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 20vw;
+  height: calc(100vh / 6);
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid #334466;
+  z-index: 150;
+  transform: scaleX(-1);
+  opacity: 0.85;
+}
+
 /* ========== Loading / Error ========== */
 
 .center-message {
@@ -230,6 +246,37 @@ body {
   font-size: 24px;
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+/* ========== Eye Close Indicator ========== */
+
+.eye-close-indicator {
+  position: relative;
+  height: 36px;
+  margin: 12px 24px 0;
+  background: #1a1a3a;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #334466;
+}
+
+.eye-close-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #2a5a8a, #44aaff);
+  transition: width 0.1s linear;
+}
+
+.eye-close-text {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* ========== Gaze Overlay ========== */
