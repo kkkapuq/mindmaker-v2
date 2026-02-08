@@ -333,7 +333,7 @@ body {
 
 .debug-panel {
   position: fixed;
-  top: 12px;
+  top: calc(100vh / 6 + 28px);
   left: 12px;
   background: rgba(10, 10, 30, 0.92);
   border: 1px solid #333;

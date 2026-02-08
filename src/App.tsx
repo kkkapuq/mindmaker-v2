@@ -60,10 +60,10 @@ export function App() {
 
   return (
     <div className="app">
-      {/* Hidden video for camera capture */}
+      {/* Camera preview */}
       <video
         ref={videoRef}
-        style={{ display: "none" }}
+        className="camera-preview"
         playsInline
         muted
       />
