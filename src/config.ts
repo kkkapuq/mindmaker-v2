@@ -27,25 +27,25 @@ export const BLINK_MIN_FRAMES = 1;
 export const BLINK_MAX_FRAMES = 5;
 
 // Gaze freeze (눈 감을 때 포인터 고정)
-export const GAZE_FREEZE_EAR = 0.26; // 이 이하면 시선 업데이트 중단 (EAR_THRESHOLD보다 높게)
+export const GAZE_FREEZE_EAR = 0.24; // 이 이하면 시선 업데이트 중단 (고령자 눈꺼풀 처짐 보정)
 export const GAZE_RECOVERY_FRAMES = 8; // 눈 뜬 후 안정화 대기 프레임 수
 
 // 눈 감아서 선택
-export const EYE_CLOSE_SELECT_SEC = 1.0; // 이 시간 이상 눈 감으면 선택
+export const EYE_CLOSE_SELECT_SEC = 1.2; // 이 시간 이상 눈 감으면 선택 (오선택 방지)
 
 // Calibration
-export const CALIBRATION_POINTS = 25; // 5x5 그리드
-export const CALIBRATION_GRID_ROWS = 5;
-export const CALIBRATION_GRID_COLS = 5;
+export const CALIBRATION_POINTS = 16; // 4x4 그리드
+export const CALIBRATION_GRID_ROWS = 4;
+export const CALIBRATION_GRID_COLS = 4;
 export const FRAMES_PER_POINT = 30; // 수집 프레임 수
 export const CALIBRATION_SETTLE_FRAMES = 5; // 처음 N프레임 버림
 export const CALIBRATION_OUTLIER_STD = 1.5; // 이상치 제거 기준 (표준편차 배수)
 export const RIDGE_LAMBDA = 0.5; // 릿지 회귀 정규화 계수 (1.5→0.5: 절편 버그 수정 후 적정값)
 
 // Gaze smoothing
-export const SMOOTHING_ALPHA = 0.15; // 낮을수록 부드러움 (0.05→0.15: 반응성 향상)
-export const MOVING_AVG_SIZE = 6; // 이동 평균 버퍼 크기 (15→6: 지연 감소)
-export const MIN_MOVE_PX = 8; // 이 픽셀 이하 움직임은 무시 (40→8: 데드존 축소)
+export const SMOOTHING_ALPHA = 0.10; // 낮을수록 부드러움 (고령자 떨림 감소)
+export const MOVING_AVG_SIZE = 8; // 이동 평균 버퍼 크기 (안정성 향상)
+export const MIN_MOVE_PX = 15; // 이 픽셀 이하 움직임은 무시 (미세 떨림 무시 범위 확대)
 
 // Gaze sensitivity (시선 매핑 민감도)
 export const GAZE_SENSITIVITY = 0.9; // 1.0=원본, 낮을수록 화면 중심으로 수축 (0.75→0.9: ey 특징 추가로 과민 완화됨)
@@ -58,7 +58,9 @@ export const ZOOM_STEP = 0.25;
 // Dwell selection
 export const DWELL_TIME_SEC = 1.5;
 export const SELECTION_COOLDOWN_SEC = 1.5;
-export const HIT_TEST_PADDING_PX = 20;
+export const HIT_TEST_PADDING_PX = 40;
+export const HYSTERESIS_EXTRA_PX = 30; // 호버 이탈 히스테리시스 (enter 40px, exit 70px)
+export const SELECT_FREEZE_MS = 800; // 선택 후 호버 감지 일시 중단
 
 // UI
 export interface BoardCategory {
